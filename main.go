@@ -82,14 +82,15 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		
 		l.RLock()
 		ch := channels[r.URL.Path]
 		l.RUnlock()
 
 		if ch != nil {
 			w.Header().Set("Content-Type", "video/x-flv")
-			w.Header().Set("Transfer-Encoding", "chunked")		
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Transfer-Encoding", "chunked")
 			w.WriteHeader(200)
 			flusher := w.(http.Flusher)
 			flusher.Flush()
