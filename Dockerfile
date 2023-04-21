@@ -14,4 +14,4 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o monday
 # EXPOSE 8081
 
 # run
-CMD ["monday"]
+CMD ["./monday"]
