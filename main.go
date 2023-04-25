@@ -41,13 +41,13 @@ func main() {
 	godotenv.Load()
 
 	wsPort := "8089"
-	if os.Getenv("WEBSERVER_PORT") != "" {
-		wsPort = os.Getenv("WEBSERVER_PORT")
+	if os.Getenv("MONDAY_PORT") != "" {
+		wsPort = os.Getenv("MONDAY_PORT")
 	}
 
 	rtmpPort := "1935"
-	if os.Getenv("RTMP_PORT") != "" {
-		rtmpPort = os.Getenv("RTMP_PORT")
+	if os.Getenv("MONDAY_RTMP_PORT") != "" {
+		rtmpPort = os.Getenv("MONDAY_RTMP_PORT")
 	}
 
 	db, err := utils.ConnectMongo(ctx)
