@@ -1,17 +1,13 @@
 FROM golang:1.20
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# copy files
 COPY . .
 
-# install modules
 RUN go mod download
 
-# build
 RUN CGO_ENABLED=0 GOOS=linux go build -o monday
 
-# EXPOSE 8081
+EXPOSE 8082
 
-# run
 CMD ["./monday"]
