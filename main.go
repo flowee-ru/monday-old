@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -40,7 +41,7 @@ func init() {
 func main() {
 	godotenv.Load()
 
-	wsPort := "8089"
+	wsPort := "8082"
 	if os.Getenv("MONDAY_PORT") != "" {
 		wsPort = os.Getenv("MONDAY_PORT")
 	}
@@ -96,6 +97,7 @@ func main() {
 			return
 		}
 
+		// set isLive to true
 		_, err = db.Collection("accounts").UpdateOne(ctx, bson.D{primitive.E{Key: "_id", Value: accountID}}, bson.D{primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: "isLive", Value: true}}}})
 		if err != nil {
 			conn.Close()
@@ -105,11 +107,15 @@ func main() {
 		log.Println(accountIDHex + " is streaming")
 
 		defer func() {
+			// set isLive to false
 			_, err = db.Collection("accounts").UpdateOne(ctx, bson.D{primitive.E{Key: "_id", Value: accountID}}, bson.D{primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: "isLive", Value: false}}}})
 			if err != nil {
 				conn.Close()
 				return
 			}
+
+			// set viewers count to 0
+			db.Collection("accounts").UpdateOne(ctx, bson.D{primitive.E{Key: "_id", Value: accountID}}, bson.D{primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: "viewers", Value: 0}}}})
 
 			log.Println(accountIDHex + " has finished his stream")
 		}()
@@ -136,9 +142,16 @@ func main() {
 		l.Unlock()
 		ch.que.Close()
 	}
-
+	
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		accountIDHex := r.URL.Path[1:]
+
+		if !primitive.IsValidObjectID(accountIDHex) {
+			fmt.Fprintf(w, "wrong account ID")
+			return
+		}
 
 		l.RLock()
 		ch := channels[r.URL.Path]
@@ -150,6 +163,18 @@ func main() {
 			w.WriteHeader(200)
 			flusher := w.(http.Flusher)
 			flusher.Flush()
+
+			accountID, _ := primitive.ObjectIDFromHex(accountIDHex)
+
+			// increase views
+			log.Println("+1 view to " + accountIDHex)
+			db.Collection("accounts").UpdateOne(ctx, bson.D{primitive.E{Key: "_id", Value: accountID}}, bson.D{primitive.E{Key: "$inc", Value: bson.D{primitive.E{Key: "viewers", Value: 1}}}})
+
+			defer func() {
+				// decrease views
+				log.Println("-1 view to " + accountIDHex)
+				db.Collection("accounts").UpdateOne(ctx, bson.D{primitive.E{Key: "_id", Value: accountID}}, bson.D{primitive.E{Key: "$inc", Value: bson.D{primitive.E{Key: "viewers", Value: -1}}}})
+			}()
 
 			muxer := flv.NewMuxerWriteFlusher(writeFlusher{httpflusher: flusher, Writer: w})
 			cursor := ch.que.Latest()
